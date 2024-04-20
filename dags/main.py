@@ -204,13 +204,16 @@ def dag():
         buildings['town'] = buildings['bldg_contract_town'].map(town_mapping)
         buildings = buildings.drop('bldg_contract_town', axis = 1)
 
+        # map boolean columns into boolean values
+        buildings[['multistorey_carpark', 'precinct_pavilion', 'market_hawker']] = buildings[['multistorey_carpark', 'precinct_pavilion', 'market_hawker']].apply(lambda x : True if x == 'Y' else False)
+
         return buildings
     
     @task
     def drop_building_columns(buildings):
         # Remove irrelevant columns
         retained_cols = ['postal_code', 'blk_no', 'street', 'max_floor_lvl', 'year_completed', 
-                        'multistorey_carpark', 'precinct_pavilion', 'market_hawker']
+                        'multistorey_carpark', 'precinct_pavilion', 'market_hawker', 'town']
         
         buildings = buildings[retained_cols]
         return buildings
@@ -327,35 +330,35 @@ def dag():
     # Load Functions
     @task
     def load_transactions(transactions):
-        pandas_gbq.to_gbq(transactions, 'hdbprices.transactions', project_id = project_id)
+        pandas_gbq.to_gbq(transactions, 'hdb.transactions', project_id = project_id)
 
     @task
     def load_mrt_stations(stations):
-        pandas_gbq.to_gbq(stations, 'hdbprices.stations', project_id = project_id)
+        pandas_gbq.to_gbq(stations, 'hdb.stations', project_id = project_id)
 
     @task
     def load_flat_type(flat_type):
-        pandas_gbq.to_gbq(flat_type, 'hdbprices.flat_type', project_id = project_id)
+        pandas_gbq.to_gbq(flat_type, 'hdb.flat_type', project_id = project_id)
 
     @task
     def load_town(town):
-        pandas_gbq.to_gbq(town, 'hdbprices.town', project_id = project_id)
+        pandas_gbq.to_gbq(town, 'hdb.town', project_id = project_id)
     
     @task
     def load_flats_sold(flats_sold):
-        pandas_gbq.to_gbq(flats_sold, 'hdbprices.flats_sold', project_id = project_id)
+        pandas_gbq.to_gbq(flats_sold, 'hdb.flats_sold', project_id = project_id)
     
     @task
     def load_buildings(buildings):
-        pandas_gbq.to_gbq(buildings, 'hdbprices.buildings', project_id = project_id)
+        pandas_gbq.to_gbq(buildings, 'hdb.buildings', project_id = project_id)
     
     @task
     def load_rent(rent):
-        pandas_gbq.to_gbq(rent, 'hdbprices.rent', project_id = project_id)
+        pandas_gbq.to_gbq(rent, 'hdb.rent', project_id = project_id)
     
     @task
     def load_schools(schools):
-        pandas_gbq.to_gbq(schools, 'hdbprices.schools', project_id = project_id)
+        pandas_gbq.to_gbq(schools, 'hdb.schools', project_id = project_id)
 
 
     
