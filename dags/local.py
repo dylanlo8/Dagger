@@ -58,6 +58,7 @@ async def extract_raw_data_async(resource_id):
         print(f"Invalid result response, check the url: {base_url}")
         return None
     except Exception as e:
+        print(Exception)
         print(f"Failed to access the API at url: {base_url}")
         print(e)
         return None
@@ -122,6 +123,7 @@ def onemap_api_mrt_stations():
             except:
                 return None
     
+    
     # Async main function to fetch all records
     async def main():
         tasks = []
@@ -140,30 +142,6 @@ def onemap_api_mrt_stations():
 #@dag(dag_id='is3107', default_args=default_args, schedule=None, catchup=False, tags=['is3107'])
 def dag():
     # Extract Tasks
-    ##@task
-    def extract_trans1():
-        records = asyncio.run(extract_raw_data_async(datagov_name_and_id_trans1[1]))
-        df = pd.DataFrame(records)
-        return df
-    
-    ##@task
-    def extract_trans2():
-        records = asyncio.run(extract_raw_data_async(datagov_name_and_id_trans2[1]))
-        df = pd.DataFrame(records)
-        return df
-
-    ##@task
-    def extract_trans3():
-        records = asyncio.run(extract_raw_data_async(datagov_name_and_id_trans3[1]))
-        df = pd.DataFrame(records)
-        return df    
-
-    ##@task
-    def extract_trans4():
-        records = asyncio.run(extract_raw_data_async(datagov_name_and_id_trans4[1]))
-        df = pd.DataFrame(records)
-        return df
-
     ##@task
     def extract_trans5():
         records = asyncio.run(extract_raw_data_async(datagov_name_and_id_trans5[1]))
@@ -197,6 +175,7 @@ def dag():
     # Buildings Entity
     #@task
     def transform_buildings(buildings):
+        print("Transforming Buildings")
         # Run OneMap API to get postal code 
         buildings['postal_code'] = onemap_api_postal(buildings)
 
@@ -206,7 +185,8 @@ def dag():
 
         # map boolean columns into boolean values
         buildings[['multistorey_carpark', 'precinct_pavilion', 'market_hawker']] = buildings[['multistorey_carpark', 'precinct_pavilion', 'market_hawker']] == 'Y'
-
+        buildings['max_floor_lvl'] = pd.to_numeric(buildings['max_floor_lvl'])
+        buildings['year_completed'] = pd.to_numeric(buildings['year_completed'])
         return buildings
     
     #@task
@@ -223,7 +203,8 @@ def dag():
     def create_flats_sold(buildings):
         # Extracting required columns
         flat_type_df = pd.DataFrame()
-        flat_type_df['postal_code'] = buildings['postal_code']
+        flat_type_df[['blk_no', 'street']] = buildings[['blk_no', 'street']]
+        
         
         # Extracting flat types and their respective sold counts
         renamed_flat_types = {'1room_sold': '1 ROOM', '2room_sold': '2 ROOM', '3room_sold': '3 ROOM',
@@ -235,9 +216,10 @@ def dag():
             flat_type_df[renamed_flat_type] = buildings[flat_type]
         
         # Reshaping the DataFrame to have flat_type as a column
-        flat_type_df = pd.melt(flat_type_df, id_vars=['postal_code'], value_vars=list(renamed_flat_types.values()),
+        flat_type_df = pd.melt(flat_type_df, id_vars=['blk_no', 'street'], value_vars=list(renamed_flat_types.values()),
                                 var_name='flat_type', value_name='flats_sold')
         
+        flat_type_df['flats_sold'] = pd.to_numeric(flat_type_df['flats_sold'])
         return flat_type_df
 
     # Town Entity
@@ -249,6 +231,8 @@ def dag():
     # Rent Entity
     #@task
     def transform_median_rent(rent):
+        print("Transforming Median Rent")
+
         renamed_flat_types = {'1-RM': '1 ROOM', '2-RM': '2 ROOM', '3-RM': '3 ROOM',
                             '4-RM': '4 ROOM', '5-RM' : '5 ROOM', 'EXEC' : 'EXECUTIVE'}   
                             
@@ -273,6 +257,8 @@ def dag():
     # Schools entity
     #@task
     def transform_schools(schools):
+        print("Transforming Schools")
+
         def clean_and_format_town_name(text):
             # Remove stopwords and make format better
             text = text.title()
@@ -284,17 +270,15 @@ def dag():
         retained_cols = ['school_name', 'postal_code', 'mrt_desc', 'mainlevel_code', 
                         'nature_code', 'type_code', 'sap_ind', 'autonomous_ind', 'gifted_ind', 'ip_ind']
         
+        schools[['sap_ind', 'autonomous_ind', 'gifted_ind', 'ip_ind']] = schools[['sap_ind', 'autonomous_ind', 'gifted_ind', 'ip_ind']] == 'Y'
+        
         return schools[retained_cols].rename(columns={'mrt_desc': 'closest_mrt'})
 
     # Transactions entity
     #@task
-    def merge_transactions(list_trans):
-        merged_transactions = pd.concat(list_trans, ignore_index=True).reset_index()
-        merged_transactions = merged_transactions.rename({'index': 'transaction_id'}, axis = 1)
-        return merged_transactions
-    
-    #@task
     def transform_transactions(transactions):
+        print("Transforming transactions")
+
         # Drop the remaining_lease column
         transactions = transactions.drop(['remaining_lease'], axis = 1)
 
@@ -306,6 +290,7 @@ def dag():
         
         # rename lease_commence_date
         transactions = transactions.rename({'lease_commence_date' : 'lease_commence_year'}, axis = 1)
+        transactions['floor_area_sqm'] = pd.to_numeric(transactions['floor_area_sqm']).astype(int)
         return transactions
     
     # Flat Type Entity
@@ -330,26 +315,32 @@ def dag():
     # Load Functions
     #@task
     def load_transactions(transactions):
+        print("Loading transactions into BigQuery")
         pandas_gbq.to_gbq(transactions, 'hdb.transactions', project_id = project_id)
 
     #@task
     def load_mrt_stations(stations):
+        print("Loading mrt stations into BigQuery")
         pandas_gbq.to_gbq(stations, 'hdb.stations', project_id = project_id)
 
     #@task
     def load_flat_type(flat_type):
+        print("Loading flat type into BigQuery")
         pandas_gbq.to_gbq(flat_type, 'hdb.flat_type', project_id = project_id)
 
     #@task
     def load_town(town):
+        print("Loading town into BigQuery")
         pandas_gbq.to_gbq(town, 'hdb.town', project_id = project_id)
     
     #@task
     def load_flats_sold(flats_sold):
+        print("Loading flats sold into BigQuery")
         pandas_gbq.to_gbq(flats_sold, 'hdb.flats_sold', project_id = project_id)
     
     #@task
     def load_buildings(buildings):
+        print("Loading buildings into BigQuery")
         pandas_gbq.to_gbq(buildings, 'hdb.buildings', project_id = project_id)
     
     #@task
