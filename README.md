@@ -11,6 +11,14 @@ We used the OneMap API and data.gov.sg's API to extract relevant data asynchrono
 ## Data Warehouse ER Diagram
 ![IS3107 ER Diagram - Copy of Final ER Diagram (1)](https://github.com/dylanlo8/Dagger/assets/100820436/21b0e9e6-8272-40df-8971-a45c5786c659)
 
+## Dashboard
+The Tableau dashboard is also uploaded onto Tableau public for convenient viewing. Opening the Tableau workbook locally requires connection to our Google Cloud Project.
+Tableau Public Link: https://public.tableau.com/app/profile/lim.shihan/viz/shared/W47YNHSRT
+
+Preview of Dashboard
+<img width="987" alt="image" src="https://github.com/dylanlo8/Dagger/assets/100820436/5b2f9d8d-7063-4107-b649-bb5af79cad4a">
+
+
 ## Code
 This repository contains 3 key files in our project.
 dags/main.py: Our defined DAG that runs the ETL Pipeline in Apache Airflow.
